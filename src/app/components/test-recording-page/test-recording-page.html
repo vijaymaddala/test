@@ -1,0 +1,941 @@
+<div class="recording-page">
+  <section class="recording-hero">
+    <header class="hero-header">
+      <div class="hero-copy">
+        <h1>Turn Your Actions<br>into <span>Automated Tests</span></h1>
+        <p>Record once. Generate tests. Run anywhere.</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="browser-window browser-back"><div class="browser-chrome"><i></i><i></i><i></i></div><div class="browser-lines"></div></div>
+        <div class="browser-window browser-front"><div class="browser-chrome"><i></i><i></i><i></i></div><div class="browser-lines"></div><div class="play-orb"><mat-icon>play_arrow</mat-icon></div></div>
+        <svg class="art-connector art-connector-top" viewBox="0 0 120 80" focusable="false" aria-hidden="true">
+          <defs>
+            <marker id="recording-arrow-forward" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M 1 1 L 8 5 L 1 9" />
+            </marker>
+          </defs>
+          <path class="connector-curve" pathLength="100" d="M 8 68 C 30 16, 74 10, 108 34" marker-end="url(#recording-arrow-forward)" />
+        </svg>
+        <svg class="art-connector art-connector-bottom" viewBox="0 0 120 80" focusable="false" aria-hidden="true">
+          <defs>
+            <marker id="recording-arrow-return" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M 1 1 L 8 5 L 1 9" />
+            </marker>
+          </defs>
+          <path class="connector-curve" pathLength="100" d="M 110 10 C 104 60, 60 76, 12 56" marker-end="url(#recording-arrow-return)" />
+        </svg>
+        <div class="framework-preview"><span class="cy-logo">cy</span><img class="framework-brand-icon" src="assets/frameworks/playwright.svg" alt="" width="40" height="40"><img class="framework-brand-icon" src="assets/frameworks/puppeteer.svg" alt="" width="40" height="40"></div>
+        <span class="art-sparkle">✦</span>
+      </div>
+    </header>
+    <mat-card class="recording-console">
+    <mat-card-content>
+      <!-- URL Input -->
+      <div class="url-entry">
+        <mat-form-field class="w-full" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Enter a URL to begin recording...</mat-label>
+          <input
+            matInput
+            [(ngModel)]="externalUrl"
+            placeholder="https://example.com or http://localhost:3001/test-page.html"
+            [disabled]="isRecording || isExternalRecording"
+            (keydown.enter)="onEnterKeyPressed()"
+            (input)="onUrlInput()"
+            (paste)="onUrlPaste($event)"
+            pattern="https?://(([a-zA-Z0-9\u002D]+\.)+[a-zA-Z]{2,}|localhost(:[0-9]+)?)(/.*)?$"
+            #urlInput="ngModel">
+          <mat-icon matPrefix>link</mat-icon>
+          <mat-icon matSuffix>open_in_new</mat-icon>
+          <mat-error *ngIf="urlInput.invalid && urlInput.touched && externalUrl.trim() !== ''">
+            <span *ngIf="urlInput.errors?.['pattern']">Please enter a valid URL (e.g., https://example.com or http://localhost:3001)</span>
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- Recording Status (Top Left) -->
+      <div *ngIf="isRecording || isExternalRecording" class="flex items-center text-red-600 mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
+        <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse mr-2"></div>
+        <span class="font-medium">Recording Active</span>
+        <span *ngIf="isResumedSession" class="ml-2 text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+          Continuing from {{originalActionsCount}} existing actions
+        </span>
+      </div>
+
+      <!-- Recording Controls -->
+      <div class="recording-controls">
+        <button
+          mat-raised-button
+          [color]="(isRecording || isExternalRecording) ? 'warn' : 'primary'"
+          (click)="(isRecording || isExternalRecording) ? stopRecording() : testExternalRecording()"
+          [disabled]="isLoading"
+          class="start-button"
+          [class.recording-active]="isRecording || isExternalRecording">
+          <mat-icon>{{(isRecording || isExternalRecording) ? 'stop' : 'play_arrow'}}</mat-icon>
+          {{(isRecording || isExternalRecording) ? 'Stop Recording' : 'Start Recording'}}
+        </button>
+
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="continueRecording()"
+          [disabled]="!hasRecordingData || isRecording || isExternalRecording || !currentRecording"
+          matTooltip="Add more test cases to the existing recording"
+          class="continue-button">
+          <mat-icon>add_circle</mat-icon>
+          Continue
+        </button>
+
+        <button
+          mat-stroked-button
+          color="accent"
+          (click)="clearRecording()"
+          [disabled]="!hasRecordingData || isRecording || isExternalRecording">
+          <mat-icon>delete_outline</mat-icon>
+          Clear
+        </button>
+
+        <span class="control-divider" aria-hidden="true"></span>
+
+        <button
+          mat-raised-button
+          class="save-button"
+          (click)="saveRecordingToDatabase()"
+          [disabled]="!hasRecordingData || isSavingRecording">
+          <mat-icon>save</mat-icon>
+          {{ isSavingRecording ? 'Saving...' : 'Save Recording' }}
+        </button>
+
+        <div class="flex-1"></div>
+
+        <mat-spinner
+          *ngIf="isLoading"
+          diameter="24">
+        </mat-spinner>
+      </div>
+
+    </mat-card-content>
+    </mat-card>
+  </section>
+  <section class="framework-section" aria-labelledby="framework-heading">
+    <h2 id="framework-heading">Choose Your Test Framework</h2>
+    <div class="framework-grid">
+      <label *ngFor="let framework of availableFrameworks" class="framework-card" [class.selected]="isFrameworkSelected(framework.id)" [class.framework-disabled]="isRecording || isExternalRecording" [attr.data-framework]="framework.id">
+        <span class="framework-logo" aria-hidden="true">
+          <span *ngIf="framework.id === 'cypress'" class="cy-logo">cy</span>
+          <img *ngIf="framework.id === 'playwright'" class="framework-brand-icon" src="assets/frameworks/playwright.svg" alt="" width="56" height="56">
+          <img *ngIf="framework.id === 'puppeteer'" class="framework-brand-icon" src="assets/frameworks/puppeteer.svg" alt="" width="56" height="56">
+        </span>
+        <span class="framework-name">{{framework.name}}<span class="framework-accent"></span></span>
+        <input type="checkbox" class="framework-checkbox" [checked]="isFrameworkSelected(framework.id)" (change)="toggleFrameworkSelection(framework.id)" [disabled]="isRecording || isExternalRecording" [attr.aria-label]="framework.name">
+      </label>
+    </div>
+  </section>
+  <section class="overview-grid">
+    <div class="overview-card">
+      <h2><mat-icon>bar_chart</mat-icon>Quick Stats</h2>
+      <div class="stats-grid" aria-live="polite">
+        <div class="stat-tile actions-stat"><mat-icon>ads_click</mat-icon><div><strong>{{totalActions}}</strong><span>User Actions</span></div></div>
+        <div class="stat-tile api-stat"><mat-icon>share</mat-icon><div><strong>{{getApiCalls().length}}</strong><span>API Calls</span></div></div>
+      </div>
+    </div>
+    <div class="overview-card">
+      <h2><mat-icon>bolt</mat-icon>What You Get</h2>
+      <div class="benefits-grid">
+        <div class="benefit"><mat-icon>videocam</mat-icon><span class="benefit-copy"><span>Record</span><span>User Actions</span></span></div>
+        <div class="benefit"><mat-icon>settings</mat-icon><span class="benefit-copy"><span>Auto-Generate</span><span>Tests</span></span></div>
+        <div class="benefit"><mat-icon>rocket_launch</mat-icon><span class="benefit-copy"><span>Run on</span><span>Multiple Frameworks</span></span></div>
+      </div>
+    </div>
+  </section>
+  <div *ngIf="hasRecordingData" class="secondary-actions">        <button
+          mat-stroked-button
+          color="primary"
+          (click)="exportRecording()"
+          [disabled]="!hasRecordingData">
+          <mat-icon>download</mat-icon>
+          Export JSON
+        </button>
+
+        <button
+          mat-raised-button
+          color="accent"
+          (click)="generateTests()"
+          [disabled]="!hasRecordingData || selectedFrameworks.length === 0">
+          <mat-icon>code</mat-icon>
+          Generate Tests
+        </button>
+
+</div>
+
+  <details class="advanced-settings">
+    <summary><mat-icon>tune</mat-icon>Recording settings &amp; credentials</summary>
+    <mat-card><mat-card-content>
+      <!-- Login Credentials Section -->
+      <mat-accordion *ngIf="showLoginCredentials" class="mb-8">
+        <mat-expansion-panel class="credentials-panel" [expanded]="credentialsExpanded">
+        <mat-expansion-panel-header>
+          <mat-panel-title class="flex items-center">
+            <mat-icon class="mr-2 text-amber-600">security</mat-icon>
+            Login Credentials
+            <mat-chip *ngIf="hasStoredCredentials" class="ml-2 credentials-chip" selected>
+              {{credentialCount}} stored
+            </mat-chip>
+          </mat-panel-title>
+          <mat-panel-description>
+            Store login credentials for automated test generation (securely encrypted)
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <div class="credentials-content mt-4">
+          <!-- Credential Input Info -->
+          <div class="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <div class="flex items-start">
+              <mat-icon class="text-amber-600 mr-2 mt-0.5" style="font-size: 18px;">info</mat-icon>
+              <div class="text-sm">
+                <p class="font-medium text-gray-900 mb-1">Secure Credential Storage</p>
+                <p class="text-gray-700">
+                  Credentials are encrypted and stored temporarily for this session only. 
+                  They will be automatically included in generated tests with proper masking and environment variable support.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Credential Fields -->
+          <div class="credential-fields-container">
+            <div *ngFor="let field of credentialFields; let i = index" class="credential-field-row mb-3">
+              <div class="flex gap-3 items-start">
+                <!-- Field Label -->
+                <mat-form-field class="flex-1">
+                  <mat-label>Field Name</mat-label>
+                  <input
+                    matInput
+                    [(ngModel)]="field.name"
+                    placeholder="e.g., username, password, apiKey"
+                    [disabled]="isRecording || isExternalRecording">
+                  <mat-icon matSuffix>label</mat-icon>
+                </mat-form-field>
+
+                <!-- Field Value -->
+                <mat-form-field class="flex-2">
+                  <mat-label>Value</mat-label>
+                  <input
+                    matInput
+                    [(ngModel)]="field.value"
+                    [type]="field.type === 'password' ? (field.showValue ? 'text' : 'password') : 'text'"
+                    [placeholder]="getFieldPlaceholder(field)"
+                    [disabled]="isRecording || isExternalRecording">
+                  
+                  <!-- Show/Hide Password Toggle -->
+                  <button
+                    *ngIf="field.type === 'password'"
+                    mat-icon-button
+                    matSuffix
+                    (click)="togglePasswordVisibility(i)"
+                    [attr.aria-label]="field.showValue ? 'Hide password' : 'Show password'">
+                    <mat-icon>{{field.showValue ? 'visibility_off' : 'visibility'}}</mat-icon>
+                  </button>
+
+                  <!-- Regular suffix icon -->
+                  <mat-icon *ngIf="field.type !== 'password'" matSuffix>
+                    {{getFieldIcon(field.type)}}
+                  </mat-icon>
+
+                  <!-- Special character indicator -->
+                  <mat-hint *ngIf="hasSpecialCharacters(field.value)" class="text-orange-600">
+                    <mat-icon class="inline-block mr-1" style="font-size: 14px;">warning</mat-icon>
+                    Contains special characters - will be properly encoded
+                  </mat-hint>
+                </mat-form-field>
+
+                <!-- Field Type -->
+                <mat-form-field class="w-32">
+                  <mat-label>Type</mat-label>
+                  <mat-select [(ngModel)]="field.type" [disabled]="isRecording || isExternalRecording">
+                    <mat-option value="username">Username</mat-option>
+                    <mat-option value="password">Password</mat-option>
+                    <mat-option value="email">Email</mat-option>
+                    <mat-option value="token">Token</mat-option>
+                    <mat-option value="code">2FA Code</mat-option>
+                    <mat-option value="text">Text</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <!-- Remove Field Button -->
+                <button
+                  mat-icon-button
+                  color="warn"
+                  (click)="removeCredentialField(i)"
+                  [disabled]="isRecording || isExternalRecording || credentialFields.length <= 1"
+                  matTooltip="Remove field">
+                  <mat-icon>remove_circle</mat-icon>
+                </button>
+              </div>
+
+              <!-- Field Validation Messages -->
+              <div *ngIf="field.validation && !field.validation.valid" class="mt-2 text-sm text-red-600">
+                <mat-icon class="inline-block mr-1" style="font-size: 16px;">error</mat-icon>
+                <span *ngIf="field.type === 'password'">
+                  Password strength: {{field.validation.strength}} 
+                  ({{field.validation.score}}/5 criteria met)
+                </span>
+                <span *ngIf="field.type === 'email' && !isValidEmail(field.value)">
+                  Invalid email format
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Field Button -->
+          <div class="mb-4">
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="addCredentialField()"
+              [disabled]="isRecording || isExternalRecording || credentialFields.length >= 10">
+              <mat-icon>add</mat-icon>
+              Add Field
+            </button>
+          </div>
+
+          <!-- Credential Actions -->
+          <div class="flex gap-3 items-center pt-3 border-t border-gray-200">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="storeCredentials()"
+              [disabled]="!hasValidCredentials() || isRecording || isExternalRecording"
+              class="min-w-36">
+              <mat-icon>save</mat-icon>
+              Store Credentials
+            </button>
+
+            <button
+              mat-stroked-button
+              (click)="clearCredentials()"
+              [disabled]="!hasStoredCredentials">
+              <mat-icon>clear</mat-icon>
+              Clear All
+            </button>
+
+            <button
+              mat-stroked-button
+              (click)="loadCredentialsFromFile()"
+              [disabled]="isRecording || isExternalRecording">
+              <mat-icon>upload_file</mat-icon>
+              Load from File
+            </button>
+
+            <div class="flex-1"></div>
+
+            <!-- Credential Status -->
+            <div *ngIf="hasStoredCredentials" class="text-sm text-green-600 flex items-center">
+              <mat-icon class="mr-1" style="font-size: 16px;">check_circle</mat-icon>
+              {{credentialCount}} credentials stored and encrypted
+            </div>
+
+            <!-- Progress Indicator -->
+            <mat-spinner *ngIf="credentialsLoading" diameter="20"></mat-spinner>
+          </div>
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+
+      <!-- Display Options Panel -->
+      <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="font-medium text-gray-900 flex items-center">
+            <mat-icon class="mr-2 text-gray-600">display_settings</mat-icon>
+            Display Options
+          </h4>
+          <button mat-icon-button (click)="toggleDisplayOptionsExpanded()">
+            <mat-icon>{{displayOptionsExpanded ? 'expand_less' : 'expand_more'}}</mat-icon>
+          </button>
+        </div>
+        
+        <div *ngIf="displayOptionsExpanded" class="space-y-4">
+          <!-- View Layout Options -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Layout View</label>
+            <mat-radio-group [(ngModel)]="selectedLayout" class="flex gap-4">
+              <mat-radio-button value="compact">Compact View</mat-radio-button>
+              <mat-radio-button value="detailed">Detailed View</mat-radio-button>
+              <mat-radio-button value="split">Split View</mat-radio-button>
+            </mat-radio-group>
+          </div>
+          
+          <!-- Display Filters -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Show/Hide Elements</label>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <mat-checkbox [(ngModel)]="showTimestamps">Timestamps</mat-checkbox>
+              <mat-checkbox [(ngModel)]="showActionTypes">Action Types</mat-checkbox>
+              <mat-checkbox [(ngModel)]="showValidations">Validations</mat-checkbox>
+              <mat-checkbox [(ngModel)]="showNetworkCalls">Network Calls</mat-checkbox>
+            </div>
+          </div>
+          
+          <!-- Results Display -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Results Display</label>
+            <div class="flex gap-4">
+              <mat-checkbox [(ngModel)]="autoExpandResults">Auto-expand results</mat-checkbox>
+              <mat-checkbox [(ngModel)]="highlightErrors">Highlight errors</mat-checkbox>
+            </div>
+          </div>
+
+          <!-- Credential Handling -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Credential Handling</label>
+            <div class="flex gap-4">
+              <mat-checkbox [(ngModel)]="showCredentialHandling">Credential Handling in Generated Tests</mat-checkbox>
+              <mat-checkbox [(ngModel)]="showLoginCredentials">Login credentials</mat-checkbox>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Credential Handling Preference -->
+      <div *ngIf="showCredentialHandling" class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+        <h4 class="font-medium text-gray-900 mb-3 flex items-center">
+          <mat-icon class="mr-2 text-green-600">security</mat-icon>
+          Credential Handling in Generated Tests
+        </h4>
+        <div class="space-y-3">
+          <mat-radio-group 
+            [(ngModel)]="credentialHandlingPreference"
+            class="flex flex-col space-y-2">
+            
+            <mat-radio-button 
+              value="environment"
+              class="mb-2"
+              [disabled]="isRecording || isExternalRecording">
+              <div class="ml-2">
+                <div class="font-medium text-gray-900 flex items-center">
+                  <mat-icon class="text-green-600 mr-1" style="font-size: 18px;">verified_user</mat-icon>
+                  Use Environment Variables (Recommended)
+                </div>
+                <div class="text-sm text-gray-600 mt-1">
+                  Generate secure tests with environment variables like <code class="bg-gray-100 px-1 rounded">Cypress.env('TEST_PASSWORD')</code>.
+                  <br>Best for team collaboration and CI/CD pipelines.
+                  <span *ngIf="hasStoredCredentials" class="text-green-600 font-medium">
+                    ✓ Will use your stored credentials
+                  </span>
+                </div>
+              </div>
+            </mat-radio-button>
+
+            <mat-radio-button 
+              value="recorded"
+              [disabled]="isRecording || isExternalRecording">
+              <div class="ml-2">
+                <div class="font-medium text-gray-900 flex items-center">
+                  <mat-icon class="text-orange-600 mr-1" style="font-size: 18px;">visibility</mat-icon>
+                  Use Recorded Values
+                </div>
+                <div class="text-sm text-gray-600 mt-1">
+                  Generate tests with the exact values you typed during recording.
+                  <br>Quick for personal testing, but <strong class="text-orange-600">credentials will be visible in code</strong>.
+                </div>
+              </div>
+            </mat-radio-button>
+
+          </mat-radio-group>
+
+          <!-- Security Notice -->
+          <div *ngIf="credentialHandlingPreference === 'recorded'" 
+               class="mt-3 p-3 bg-orange-100 rounded border border-orange-300">
+            <div class="flex items-start">
+              <mat-icon class="text-orange-600 mr-2 mt-0.5" style="font-size: 20px;">warning</mat-icon>
+              <div class="text-sm">
+                <strong class="text-orange-800">Security Notice:</strong>
+                <div class="text-orange-700 mt-1">
+                  Using recorded values will include passwords and sensitive data directly in your test code.
+                  Only use this option for personal testing or non-sensitive data.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Environment Variables Help -->
+          <div *ngIf="showCredentialHandling && credentialHandlingPreference === 'environment'" 
+               class="mt-3 p-3 bg-blue-100 rounded border border-blue-300">
+            <div class="flex items-start">
+              <mat-icon class="text-blue-600 mr-2 mt-0.5" style="font-size: 20px;">info</mat-icon>
+              <div class="text-sm">
+                <strong class="text-blue-800">Environment Setup:</strong>
+                <div class="text-blue-700 mt-1">
+                  Set environment variables: <code class="bg-blue-200 px-1 rounded">TEST_USERNAME</code>, 
+                  <code class="bg-blue-200 px-1 rounded">TEST_PASSWORD</code>, 
+                  <code class="bg-blue-200 px-1 rounded">TEST_EMAIL</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recording Activity -->
+      <div *ngIf="isExternalRecording" class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div class="flex items-center text-blue-700">
+          <mat-icon class="mr-2">info</mat-icon>
+          <span class="font-medium">Recording in progress...</span>
+        </div>
+        <p class="text-blue-600 mt-1 ml-8">
+          Interact with the browser window to record actions. All clicks, inputs, scrolling, API calls and asset failures are being captured.
+        </p>
+      </div>
+
+
+
+      <!-- Chatbot Validations Summary -->
+      <div *ngIf="showValidations && chatbotInteractions.length > 0" class="mb-4 p-4 rounded-lg border"
+           [ngClass]="getChatbotSummaryClass()" [hidden]="true">
+        <div class="flex items-center mb-3">
+          <mat-icon [class]="getChatbotSummaryIconClass()" class="mr-2">
+            {{getChatbotSummaryIcon()}}
+          </mat-icon>
+          <span class="font-medium" [class]="getChatbotSummaryTextClass()">
+            Chatbot Response Validations ({{chatbotInteractions.length}})
+          </span>
+        </div>
+        
+        <div class="space-y-2">
+          <div *ngFor="let interaction of chatbotInteractions; let i = index" 
+               class="p-3 bg-white rounded border border-gray-200 text-sm hover:shadow-md transition-shadow">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex-1">
+                <div class="font-medium text-gray-700 mb-1">
+                  <mat-icon style="font-size: 14px; height: 14px; width: 14px; vertical-align: text-bottom;" class="mr-1">question_answer</mat-icon>
+                  User Query:
+                </div>
+                <div class="text-gray-900 ml-5">"{{interaction.userQuery}}"</div>
+              </div>
+              <div class="flex items-center ml-3">
+                <mat-icon [style.color]="interaction.validation?.isRelated ? '#4caf50' : '#f44336'"
+                         style="font-size: 20px; height: 20px; width: 20px;">
+                  {{interaction.validation?.isRelated ? 'check_circle' : 'cancel'}}
+                </mat-icon>
+              </div>
+            </div>
+            
+            <!-- Source Badge -->
+            <div class="mb-2" *ngIf="interaction.source">
+              <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
+                    [ngClass]="{
+                      'bg-blue-100 text-blue-800': interaction.source === 'api',
+                      'bg-green-100 text-green-800': interaction.source === 'dom' || interaction.source === 'mutation',
+                      'bg-purple-100 text-purple-800': interaction.source === 'websocket'
+                    }">
+                <mat-icon style="font-size: 12px; height: 12px; width: 12px; margin-right: 4px;">
+                  {{interaction.source === 'api' ? 'api' : interaction.source === 'websocket' ? 'sync_alt' : 'web'}}
+                </mat-icon>
+                {{interaction.source | uppercase}}
+              </span>
+              <span *ngIf="interaction.responseTime" class="ml-2 text-xs text-gray-500">
+                {{interaction.responseTime}}ms
+              </span>
+            </div>
+
+            <!-- API Endpoint (for API responses) -->
+            <div class="mb-2" *ngIf="interaction.source === 'api' && interaction.apiEndpoint">
+              <div class="font-medium text-gray-700 mb-1">
+                <mat-icon style="font-size: 14px; height: 14px; width: 14px; vertical-align: text-bottom;" class="mr-1">link</mat-icon>
+                API Endpoint:
+              </div>
+              <div class="text-gray-900 ml-5 font-mono text-xs bg-gray-50 p-2 rounded break-all">
+                {{interaction.apiEndpoint}}
+              </div>
+            </div>
+            
+            <div class="mb-2">
+              <div class="font-medium text-gray-700 mb-1">
+                <mat-icon style="font-size: 14px; height: 14px; width: 14px; vertical-align: text-bottom;" class="mr-1">smart_toy</mat-icon>
+                Bot Response:
+              </div>
+              <div class="text-gray-900 ml-5">"{{interaction.botResponse | slice:0:150}}{{interaction.botResponse.length > 150 ? '...' : ''}}"</div>
+            </div>
+
+            <!-- Full Response (expandable for API responses) -->
+            <div class="mb-2" *ngIf="interaction.source === 'api' && interaction.fullResponse">
+              <details class="cursor-pointer">
+                <summary class="font-medium text-gray-700 mb-1 hover:text-blue-600">
+                  <mat-icon style="font-size: 14px; height: 14px; width: 14px; vertical-align: text-bottom;" class="mr-1">data_object</mat-icon>
+                  Full API Response (click to expand)
+                </summary>
+                <div class="ml-5 mt-2 font-mono text-xs bg-gray-900 text-green-400 p-3 rounded max-h-64 overflow-y-auto">
+                  <pre class="whitespace-pre-wrap">{{interaction.fullResponse | json}}</pre>
+                </div>
+              </details>
+            </div>
+            
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+              <div class="text-xs" [class]="interaction.validation?.isRelated ? 'text-green-600' : 'text-red-600'">
+                <strong>{{interaction.validation?.isRelated ? '✓ Relevant' : '✗ Not Relevant'}}</strong> 
+                ({{(interaction.validation?.confidence || 0) * 100 | number:'1.0-0'}}% confidence)
+              </div>
+              <div class="text-xs text-gray-500">
+                {{interaction.timestamp | date:'HH:mm:ss'}}
+              </div>
+            </div>
+            
+            <div *ngIf="interaction.validation && interaction.validation.reason" class="text-xs text-gray-600 mt-1 italic">
+              {{interaction.validation.reason}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+  </details>
+
+  <!-- Generated Tests -->
+  <mat-card *ngIf="showTestGeneration && generatedTests.length > 0" class="mb-6">
+    <mat-card-header>
+      <mat-card-title>Generated Test Cases</mat-card-title>
+      <mat-card-subtitle>Download or copy the generated tests for your preferred framework</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="pt-4 test-generation">
+      <!-- Validation Summary (Chatbot validation is always enabled) -->
+      <div *ngIf="getValidationActionsCount() > 0" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div class="flex items-center mb-3">
+          <mat-icon class="text-green-600 mr-2">verified</mat-icon>
+          <h3 class="font-medium text-green-800">Chatbot Validation Included</h3>
+        </div>
+        <p class="text-sm text-green-700 mb-3">
+          {{getValidationActionsCount()}} actions will include automatic chatbot response validation. 
+          Your generated tests will verify that chatbot responses are relevant and accurate.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div *ngFor="let action of recordedActions; let i = index" 
+               class="text-xs bg-white p-2 rounded border border-green-100"
+               [hidden]="!willTriggerValidation(action, i)">
+            <div class="font-medium text-green-800">Action #{{i + 1}}: {{action.type}}</div>
+            <div class="text-green-600 mt-1">{{getValidationStatusDescription(action, i)}}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-6 flex flex-wrap gap-4">
+        <button
+          mat-stroked-button
+          color="primary"
+          (click)="downloadAllGeneratedTests()">
+          <mat-icon>download</mat-icon>
+          Download All Tests
+        </button>
+
+        <button
+          mat-stroked-button
+          color="accent"
+          (click)="saveGeneratedTest()"
+          [disabled]="isSavingTest"
+          matTooltip="Save generated tests to run later from Saved Test Cases">
+          <mat-icon>save</mat-icon>
+          <span *ngIf="!isSavingTest">Save Generated Test</span>
+          <span *ngIf="isSavingTest">Saving...</span>
+        </button>
+        
+        <button
+          mat-stroked-button
+          color="warn"
+          (click)="clearAllStoredTests()"
+          matTooltip="Clear all stored tests from browser localStorage">
+          <mat-icon>delete_sweep</mat-icon>
+          Clear All Tests
+        </button>
+      </div>
+
+      <div class="test-cases-container">
+        <mat-expansion-panel *ngFor="let test of generatedTests" class="test-case-panel">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <div class="flex items-center">
+              <mat-icon class="mr-2">{{test.framework.id === 'cypress' ? 'speed' : 
+                                        test.framework.id === 'playwright' ? 'theater_comedy' :
+                                        test.framework.id === 'puppeteer' ? 'smart_toy' : 'web'}}</mat-icon>
+              {{test.framework.name}}
+              
+              <!-- Validation Indicator Badge -->
+              <mat-chip *ngIf="hasValidationInTest(test)" 
+                       style="background-color: #e8f5e9; color: #2e7d32; margin-left: 8px;"
+                       class="text-xs px-2 py-1 flex items-center">
+                <mat-icon class="mr-1" style="font-size: 12px; height: 12px; width: 12px;">verified</mat-icon>
+                Response Validation
+              </mat-chip>
+            </div>
+          </mat-panel-title>
+          <mat-panel-description>
+            <span>{{test.filename}} • {{test.framework.description}}</span>
+            <span *ngIf="hasValidationInTest(test)" class="text-green-600 ml-2">
+              • Includes automatic response validation
+            </span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <div class="pt-4">
+          <div class="flex gap-2 mb-4 flex-wrap">
+            <button
+              mat-stroked-button
+              size="small"
+              (click)="downloadTest(test)">
+              <mat-icon>download</mat-icon>
+              Download Test
+            </button>
+            <button
+              mat-raised-button
+              color="primary"
+              size="small"
+              (click)="downloadProject(test)"
+              matTooltip="Download complete standalone project with dependencies and configuration">
+              <mat-icon>folder_zip</mat-icon>
+              Download Project
+            </button>
+            <button
+              mat-stroked-button
+              size="small"
+              (click)="copyTestToClipboard(test)">
+              <mat-icon>content_copy</mat-icon>
+              Copy
+            </button>
+          </div>
+
+          <pre class="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto"><code>{{test.code}}</code></pre>
+        </div>
+      </mat-expansion-panel>
+      </div> <!-- Close test-cases-container -->
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Test Execution with Screenshots -->
+  <app-test-execution 
+    *ngIf="showTestGeneration && generatedTests.length > 0"
+    [generatedTests]="generatedTests"
+    [targetUrl]="getTargetUrl()"
+    [sessionId]="currentRecording?.id || ''"
+    [chatbotValidations]="chatbotInteractions"
+    (executionStarted)="onExecutionStarted()"
+    (executionCompleted)="onExecutionCompleted($event)"
+    (clearChatbotValidations)="onClearChatbotValidations()"
+    class="mb-6">
+  </app-test-execution>
+
+  <!-- Recording Data Tabs -->
+  <mat-card *ngIf="hasRecordingData">
+    <mat-card-header>
+      <mat-card-title>Recorded Data</mat-card-title>
+      <mat-card-subtitle>Captured user actions, API calls, and asset failures</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="pt-4">
+      <mat-tab-group>
+        <!-- User Actions Tab -->
+        <mat-tab label="User Actions ({{recordedActions.length}})">
+          <div class="pt-4">
+            <div *ngIf="recordedActions.length === 0" class="text-center py-8 text-gray-500">
+              <mat-icon class="text-4xl mb-2">mouse</mat-icon>
+              <p>No user actions recorded yet</p>
+              <p class="text-sm">Start recording and interact with the browser</p>
+            </div>
+
+            <div *ngFor="let action of recordedActions; let i = index" 
+                 class="border-b border-gray-200 py-3"
+                 [ngClass]="{
+                   'py-2': selectedLayout === 'compact',
+                   'py-4': selectedLayout === 'detailed'
+                 }">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <!-- Action Type Icon -->
+                  <mat-icon [style.color]="action.type === 'click' ? '#2196f3' : 
+                                          action.type === 'input' ? '#9c27b0' :
+                                          action.type === 'navigation' ? '#4caf50' :
+                                          action.type === 'scroll' ? '#ff9800' : '#607d8b'"
+                           class="action-icon"
+                           [hidden]="!showActionTypes">
+                    {{getActionTypeIcon(action.type)}}
+                  </mat-icon>
+                  
+                  <!-- Human-Friendly Description -->
+                  <div class="flex-1">
+                    <div class="font-medium text-gray-800">
+                      {{getHumanFriendlyActionDescription(action)}}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                      Action #{{i + 1}}
+                      <span *ngIf="showTimestamps" class="ml-2">
+                        • {{action.timestamp | date:'HH:mm:ss.SSS'}}
+                      </span>
+                      <span *ngIf="action.element.selector && action.element.selector !== 'window'" class="ml-2">
+                        • {{action.element.selector}}
+                      </span>
+                    </div>
+                    
+                    <!-- Detailed Layout Extra Information -->
+                    <div *ngIf="selectedLayout === 'detailed'" class="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                      <div *ngIf="action.element.tagName"><strong>Element:</strong> {{action.element.tagName}}</div>
+                      <div *ngIf="action.element.text && action.element.text.length > 0"><strong>Text:</strong> "{{action.element.text}}"</div>
+                      <div *ngIf="action.data?.value"><strong>Value:</strong> "{{action.data?.value}}"</div>
+                      <div *ngIf="action.element.xpath"><strong>XPath:</strong> {{action.element.xpath}}</div>
+                      <div *ngIf="action.element.position"><strong>Position:</strong> x={{action.element.position.x}}, y={{action.element.position.y}}</div>
+                    </div>
+                    
+                    <!-- Validation Status Indicator -->
+                    <div *ngIf="showValidations && getValidationStatusDescription(action, i)" class="text-xs mt-2 p-2 bg-green-50 border border-green-200 rounded flex items-center">
+                      <mat-icon class="text-green-600 mr-2" style="font-size: 14px; height: 14px; width: 14px;">verified</mat-icon>
+                      <span class="text-green-700 font-medium">{{getValidationStatusDescription(action, i)}}</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Badges Container -->
+                  <div class="flex items-center space-x-2">
+                    <!-- Chatbot Validation Indicator (Simple ✓/✗) -->
+                    <div *ngIf="hasValidation(action)" 
+                         class="flex items-center px-2 py-1 rounded text-xs font-medium"
+                         [style.background-color]="getValidationColor(action) + '20'"
+                         [title]="getValidationTooltip(action)">
+                      <mat-icon [style.color]="getValidationColor(action)" 
+                               style="font-size: 16px; height: 16px; width: 16px; margin-right: 4px;">
+                        {{getValidationIcon(action)}}
+                      </mat-icon>
+                      <span [style.color]="getValidationColor(action)">
+                        {{getValidationForAction(action)?.isRelated ? 'Relevant' : 'Not Relevant'}}
+                      </span>
+                      <span class="ml-1 text-gray-500">
+                        ({{(getValidationForAction(action)?.confidence || 0) * 100 | number:'1.0-0'}}%)
+                      </span>
+                    </div>
+                    
+                    <!-- Validation Badge -->
+                    <mat-chip *ngIf="willTriggerValidation(action, i)" 
+                             style="background-color: #e8f5e9; color: #2e7d32;"
+                             class="text-xs px-2 py-1 flex items-center">
+                      <mat-icon class="mr-1" style="font-size: 12px; height: 12px; width: 12px;">verified</mat-icon>
+                      Validates
+                    </mat-chip>
+                    
+                    <!-- Action Type Badge -->
+                    <mat-chip [style.background-color]="action.type === 'click' ? '#e3f2fd' : 
+                                                       action.type === 'input' ? '#f3e5f5' :
+                                                       action.type === 'navigation' ? '#e8f5e8' :
+                                                       action.type === 'scroll' ? '#fff3e0' : '#f5f5f5'"
+                             [style.color]="action.type === 'click' ? '#1976d2' : 
+                                           action.type === 'input' ? '#7b1fa2' :
+                                           action.type === 'navigation' ? '#388e3c' :
+                                           action.type === 'scroll' ? '#f57c00' : '#616161'"
+                             class="text-xs px-2 py-1">
+                      {{action.type}}
+                    </mat-chip>
+                  </div>
+                </div>
+                
+                <div class="text-xs text-gray-400 ml-4">
+                  {{action.timestamp | date:'HH:mm:ss.SSS'}}
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Network Calls Tab -->
+        <mat-tab *ngIf="showNetworkCalls" label="Network Activity ({{networkCalls.length}})">
+          <div class="pt-4">
+            <div *ngIf="networkCalls.length === 0" class="text-center py-8 text-gray-500">
+              <mat-icon class="text-4xl mb-2">cloud_off</mat-icon>
+              <p>No network activity recorded yet</p>
+              <p class="text-sm">API calls and asset failures will appear here during recording</p>
+            </div>
+
+            <!-- API Calls Section -->
+            <div *ngIf="getApiCalls().length > 0" class="mb-6">
+              <div class="flex items-center mb-3">
+                <mat-icon class="text-blue-600 mr-2">api</mat-icon>
+                <h3 class="text-lg font-semibold text-gray-800">API Calls ({{getApiCalls().length}})</h3>
+              </div>
+              
+              <div *ngFor="let call of getApiCalls(); let i = index" class="border border-gray-200 rounded-md mb-3 p-3 bg-blue-50">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center">
+                    <mat-chip [class]="getMethodClass(call.method)" class="mr-2 text-sm">
+                      {{call.method}}
+                    </mat-chip>
+                    <span class="font-mono text-sm text-blue-800">{{call.url}}</span>
+                  </div>
+                  <div class="flex items-center text-xs text-gray-600">
+                    <span *ngIf="call.status" class="mr-2 px-2 py-1 rounded-full" [class]="getStatusClass(call.status)">{{call.status}}</span>
+                    <span>{{call.timestamp | date:'HH:mm:ss.SSS'}}</span>
+                  </div>
+                </div>
+                <div *ngIf="call.contentType" class="mt-1 text-xs text-blue-600">
+                  Content-Type: {{call.contentType}}
+                </div>
+                <div *ngIf="call.type === 'api_request' && call.postData" class="mt-2">
+                  <mat-icon class="text-xs mr-1">arrow_upward</mat-icon>
+                  <span class="text-xs text-gray-600">Request data available</span>
+                </div>
+                <div *ngIf="call.type === 'api_response' && call.responseData" class="mt-1">
+                  <mat-icon class="text-xs mr-1">arrow_downward</mat-icon>
+                  <span class="text-xs text-gray-600">Response data captured</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Asset Failures Section -->
+            <div *ngIf="getAssetFailures().length > 0" class="mb-6">
+              <div class="flex items-center mb-3">
+                <mat-icon class="text-red-600 mr-2">error_outline</mat-icon>
+                <h3 class="text-lg font-semibold text-gray-800">Asset Loading Failures ({{getAssetFailures().length}})</h3>
+              </div>
+              
+              <div *ngFor="let failure of getAssetFailures(); let i = index" class="border border-red-200 rounded-md mb-3 p-3 bg-red-50">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center">
+                    <mat-icon class="text-red-600 mr-2 text-sm">broken_image</mat-icon>
+                    <span class="font-mono text-sm text-red-800">{{failure.url}}</span>
+                  </div>
+                  <div class="flex items-center text-xs text-gray-600">
+                    <span class="mr-2 px-2 py-1 rounded-full bg-red-200 text-red-800">FAILED</span>
+                    <span>{{failure.timestamp | date:'HH:mm:ss.SSS'}}</span>
+                  </div>
+                </div>
+                <div class="mt-2 text-xs text-red-700">
+                  <mat-icon class="text-xs mr-1">warning</mat-icon>
+                  Error: {{failure.error}}
+                </div>
+                <div *ngIf="failure.resourceType" class="mt-1 text-xs text-gray-600">
+                  Resource Type: {{failure.resourceType}}
+                </div>
+              </div>
+            </div>
+
+            <!-- API Failures Section -->
+            <div *ngIf="getApiFailures().length > 0" class="mb-6">
+              <div class="flex items-center mb-3">
+                <mat-icon class="text-orange-600 mr-2">api</mat-icon>
+                <h3 class="text-lg font-semibold text-gray-800">API Call Failures ({{getApiFailures().length}})</h3>
+              </div>
+              
+              <div *ngFor="let failure of getApiFailures(); let i = index" class="border border-orange-200 rounded-md mb-3 p-3 bg-orange-50">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center">
+                    <mat-chip [class]="getMethodClass(failure.method)" class="mr-2 text-sm">
+                      {{failure.method}}
+                    </mat-chip>
+                    <span class="font-mono text-sm text-orange-800">{{failure.url}}</span>
+                  </div>
+                  <div class="flex items-center text-xs text-gray-600">
+                    <span class="mr-2 px-2 py-1 rounded-full bg-orange-200 text-orange-800">FAILED</span>
+                    <span>{{failure.timestamp | date:'HH:mm:ss.SSS'}}</span>
+                  </div>
+                </div>
+                <div class="mt-2 text-xs text-orange-700">
+                  <mat-icon class="text-xs mr-1">error</mat-icon>
+                  Error: {{failure.error}}
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card-content>
+  </mat-card>
+</div>
