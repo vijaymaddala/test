@@ -721,125 +721,60 @@
   </app-test-execution>
 
   <!-- Recording Data Tabs -->
-  <mat-card *ngIf="hasRecordingData">
+  <mat-card *ngIf="hasRecordingData" class="recorded-data-card">
     <mat-card-header>
-      <mat-card-title>Recorded Data</mat-card-title>
+      <mat-card-title><mat-icon aria-hidden="true">history</mat-icon>Recorded Data</mat-card-title>
       <mat-card-subtitle>Captured user actions, API calls, and asset failures</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content class="pt-4">
-      <mat-tab-group>
+      <mat-tab-group class="recorded-data-tabs" animationDuration="150ms">
         <!-- User Actions Tab -->
         <mat-tab label="User Actions ({{recordedActions.length}})">
-          <div class="pt-4">
-            <div *ngIf="recordedActions.length === 0" class="text-center py-8 text-gray-500">
-              <mat-icon class="text-4xl mb-2">mouse</mat-icon>
-              <p>No user actions recorded yet</p>
-              <p class="text-sm">Start recording and interact with the browser</p>
+          <div class="recorded-actions-list" [class.compact-actions]="selectedLayout === 'compact'">
+            <div *ngIf="recordedActions.length === 0" class="recorded-empty-state">
+              <mat-icon>touch_app</mat-icon>
+              <h3>No user actions yet</h3>
+              <p>Interact with the browser while recording to capture your test steps.</p>
             </div>
-
-            <div *ngFor="let action of recordedActions; let i = index" 
-                 class="border-b border-gray-200 py-3"
-                 [ngClass]="{
-                   'py-2': selectedLayout === 'compact',
-                   'py-4': selectedLayout === 'detailed'
-                 }">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                  <!-- Action Type Icon -->
-                  <mat-icon [style.color]="action.type === 'click' ? '#2196f3' : 
-                                          action.type === 'input' ? '#9c27b0' :
-                                          action.type === 'navigation' ? '#4caf50' :
-                                          action.type === 'scroll' ? '#ff9800' : '#607d8b'"
-                           class="action-icon"
-                           [hidden]="!showActionTypes">
-                    {{getActionTypeIcon(action.type)}}
-                  </mat-icon>
-                  
-                  <!-- Human-Friendly Description -->
-                  <div class="flex-1">
-                    <div class="font-medium text-gray-800">
-                      {{getHumanFriendlyActionDescription(action)}}
-                    </div>
-                    <div class="text-xs text-gray-500 mt-1">
-                      Action #{{i + 1}}
-                      <span *ngIf="showTimestamps" class="ml-2">
-                        • {{action.timestamp | date:'HH:mm:ss.SSS'}}
-                      </span>
-                      <span *ngIf="action.element.selector && action.element.selector !== 'window'" class="ml-2">
-                        • {{action.element.selector}}
-                      </span>
-                    </div>
-                    
-                    <!-- Detailed Layout Extra Information -->
-                    <div *ngIf="selectedLayout === 'detailed'" class="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                      <div *ngIf="action.element.tagName"><strong>Element:</strong> {{action.element.tagName}}</div>
-                      <div *ngIf="action.element.text && action.element.text.length > 0"><strong>Text:</strong> "{{action.element.text}}"</div>
-                      <div *ngIf="action.data?.value"><strong>Value:</strong> "{{action.data?.value}}"</div>
-                      <div *ngIf="action.element.xpath"><strong>XPath:</strong> {{action.element.xpath}}</div>
-                      <div *ngIf="action.element.position"><strong>Position:</strong> x={{action.element.position.x}}, y={{action.element.position.y}}</div>
-                    </div>
-                    
-                    <!-- Validation Status Indicator -->
-                    <div *ngIf="showValidations && getValidationStatusDescription(action, i)" class="text-xs mt-2 p-2 bg-green-50 border border-green-200 rounded flex items-center">
-                      <mat-icon class="text-green-600 mr-2" style="font-size: 14px; height: 14px; width: 14px;">verified</mat-icon>
-                      <span class="text-green-700 font-medium">{{getValidationStatusDescription(action, i)}}</span>
-                    </div>
-                  </div>
-                  
-                  <!-- Badges Container -->
-                  <div class="flex items-center space-x-2">
-                    <!-- Chatbot Validation Indicator (Simple ✓/✗) -->
-                    <div *ngIf="hasValidation(action)" 
-                         class="flex items-center px-2 py-1 rounded text-xs font-medium"
-                         [style.background-color]="getValidationColor(action) + '20'"
-                         [title]="getValidationTooltip(action)">
-                      <mat-icon [style.color]="getValidationColor(action)" 
-                               style="font-size: 16px; height: 16px; width: 16px; margin-right: 4px;">
-                        {{getValidationIcon(action)}}
-                      </mat-icon>
-                      <span [style.color]="getValidationColor(action)">
-                        {{getValidationForAction(action)?.isRelated ? 'Relevant' : 'Not Relevant'}}
-                      </span>
-                      <span class="ml-1 text-gray-500">
-                        ({{(getValidationForAction(action)?.confidence || 0) * 100 | number:'1.0-0'}}%)
-                      </span>
-                    </div>
-                    
-                    <!-- Validation Badge -->
-                    <mat-chip *ngIf="willTriggerValidation(action, i)" 
-                             style="background-color: #e8f5e9; color: #2e7d32;"
-                             class="text-xs px-2 py-1 flex items-center">
-                      <mat-icon class="mr-1" style="font-size: 12px; height: 12px; width: 12px;">verified</mat-icon>
-                      Validates
-                    </mat-chip>
-                    
-                    <!-- Action Type Badge -->
-                    <mat-chip [style.background-color]="action.type === 'click' ? '#e3f2fd' : 
-                                                       action.type === 'input' ? '#f3e5f5' :
-                                                       action.type === 'navigation' ? '#e8f5e8' :
-                                                       action.type === 'scroll' ? '#fff3e0' : '#f5f5f5'"
-                             [style.color]="action.type === 'click' ? '#1976d2' : 
-                                           action.type === 'input' ? '#7b1fa2' :
-                                           action.type === 'navigation' ? '#388e3c' :
-                                           action.type === 'scroll' ? '#f57c00' : '#616161'"
-                             class="text-xs px-2 py-1">
-                      {{action.type}}
-                    </mat-chip>
-                  </div>
-                </div>
-                
-                <div class="text-xs text-gray-400 ml-4">
-                  {{action.timestamp | date:'HH:mm:ss.SSS'}}
-                </div>
+            <article *ngFor="let action of recordedActions; let i = index" class="recorded-action" [attr.data-action-type]="action.type">
+              <div *ngIf="showActionTypes" class="recorded-action-icon" aria-hidden="true">
+                <mat-icon>{{getActionTypeIcon(action.type)}}</mat-icon>
               </div>
-            </div>
+              <div class="recorded-action-body">
+                <div class="recorded-action-heading">
+                  <h3>{{getHumanFriendlyActionDescription(action)}}</h3>
+                  <div class="recorded-action-badges">
+                    <span *ngIf="hasValidation(action)" class="recorded-badge validation-result" [style.background-color]="getValidationColor(action) + '20'" [title]="getValidationTooltip(action)">
+                      <mat-icon [style.color]="getValidationColor(action)">{{getValidationIcon(action)}}</mat-icon>
+                      {{getValidationForAction(action)?.isRelated ? 'Relevant' : 'Not Relevant'}}
+                      ({{(getValidationForAction(action)?.confidence || 0) * 100 | number:'1.0-0'}}%)
+                    </span>
+                    <span *ngIf="showValidations && willTriggerValidation(action, i)" class="recorded-badge validates-badge"><mat-icon>verified</mat-icon>Validates</span>
+                    <span *ngIf="showActionTypes" class="recorded-badge action-type-badge">{{action.type}}</span>
+                  </div>
+                </div>
+                <div class="recorded-action-meta">
+                  <span class="action-step">Action #{{i + 1}}</span>
+                  <time *ngIf="showTimestamps">{{action.timestamp | date:'HH:mm:ss.SSS'}}</time>
+                  <code *ngIf="action.element.selector && action.element.selector !== 'window'">{{action.element.selector}}</code>
+                </div>
+                <dl *ngIf="selectedLayout === 'detailed'" class="recorded-action-details">
+                  <div *ngIf="action.element.tagName"><dt>Element</dt><dd>{{action.element.tagName}}</dd></div>
+                  <div *ngIf="action.element.text && action.element.text.length > 0"><dt>Text</dt><dd>{{action.element.text}}</dd></div>
+                  <div *ngIf="action.data?.value"><dt>Value</dt><dd>{{action.data?.value}}</dd></div>
+                  <div *ngIf="action.element.xpath"><dt>XPath</dt><dd class="detail-code">{{action.element.xpath}}</dd></div>
+                  <div *ngIf="action.element.position"><dt>Position</dt><dd>x={{action.element.position.x}}, y={{action.element.position.y}}</dd></div>
+                </dl>
+                <div *ngIf="showValidations && getValidationStatusDescription(action, i)" class="recorded-validation-note"><mat-icon>verified</mat-icon><span>{{getValidationStatusDescription(action, i)}}</span></div>
+              </div>
+            </article>
           </div>
         </mat-tab>
 
         <!-- Network Calls Tab -->
         <mat-tab *ngIf="showNetworkCalls" label="Network Activity ({{networkCalls.length}})">
-          <div class="pt-4">
-            <div *ngIf="networkCalls.length === 0" class="text-center py-8 text-gray-500">
+          <div class="recorded-network-list">
+            <div *ngIf="networkCalls.length === 0" class="recorded-empty-state">
               <mat-icon class="text-4xl mb-2">cloud_off</mat-icon>
               <p>No network activity recorded yet</p>
               <p class="text-sm">API calls and asset failures will appear here during recording</p>
@@ -852,13 +787,13 @@
                 <h3 class="text-lg font-semibold text-gray-800">API Calls ({{getApiCalls().length}})</h3>
               </div>
               
-              <div *ngFor="let call of getApiCalls(); let i = index" class="border border-gray-200 rounded-md mb-3 p-3 bg-blue-50">
-                <div class="flex items-center justify-between">
+              <div *ngFor="let call of getApiCalls(); let i = index" class="network-entry network-entry-api">
+                <div class="network-entry-heading">
                   <div class="flex items-center">
                     <mat-chip [class]="getMethodClass(call.method)" class="mr-2 text-sm">
                       {{call.method}}
                     </mat-chip>
-                    <span class="font-mono text-sm text-blue-800">{{call.url}}</span>
+                    <span class="network-url">{{call.url}}</span>
                   </div>
                   <div class="flex items-center text-xs text-gray-600">
                     <span *ngIf="call.status" class="mr-2 px-2 py-1 rounded-full" [class]="getStatusClass(call.status)">{{call.status}}</span>
@@ -886,11 +821,11 @@
                 <h3 class="text-lg font-semibold text-gray-800">Asset Loading Failures ({{getAssetFailures().length}})</h3>
               </div>
               
-              <div *ngFor="let failure of getAssetFailures(); let i = index" class="border border-red-200 rounded-md mb-3 p-3 bg-red-50">
-                <div class="flex items-center justify-between">
+              <div *ngFor="let failure of getAssetFailures(); let i = index" class="network-entry network-entry-failure">
+                <div class="network-entry-heading">
                   <div class="flex items-center">
                     <mat-icon class="text-red-600 mr-2 text-sm">broken_image</mat-icon>
-                    <span class="font-mono text-sm text-red-800">{{failure.url}}</span>
+                    <span class="network-url">{{failure.url}}</span>
                   </div>
                   <div class="flex items-center text-xs text-gray-600">
                     <span class="mr-2 px-2 py-1 rounded-full bg-red-200 text-red-800">FAILED</span>
@@ -914,13 +849,13 @@
                 <h3 class="text-lg font-semibold text-gray-800">API Call Failures ({{getApiFailures().length}})</h3>
               </div>
               
-              <div *ngFor="let failure of getApiFailures(); let i = index" class="border border-orange-200 rounded-md mb-3 p-3 bg-orange-50">
-                <div class="flex items-center justify-between">
+              <div *ngFor="let failure of getApiFailures(); let i = index" class="network-entry network-entry-warning">
+                <div class="network-entry-heading">
                   <div class="flex items-center">
                     <mat-chip [class]="getMethodClass(failure.method)" class="mr-2 text-sm">
                       {{failure.method}}
                     </mat-chip>
-                    <span class="font-mono text-sm text-orange-800">{{failure.url}}</span>
+                    <span class="network-url">{{failure.url}}</span>
                   </div>
                   <div class="flex items-center text-xs text-gray-600">
                     <span class="mr-2 px-2 py-1 rounded-full bg-orange-200 text-orange-800">FAILED</span>

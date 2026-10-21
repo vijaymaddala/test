@@ -40,6 +40,22 @@ Port the recording-page UI from this package into the destination Angular applic
 
 Do not modify backend files, dependencies, global theme settings, or shared framework-generation services. Specifically, do not include `server/src/services/headless-recording.service.js`; its local changes are unrelated.
 
+## Recorded Data section update
+
+Apply the latest Recorded Data changes from the supplied HTML and SCSS together. No additional TypeScript changes are needed for this section.
+
+- Use the `recorded-data-card` surface, history icon, compact heading/subtitle, and styled Material tabs. Preserve the card's `hasRecordingData` condition and the conditional Network Activity tab.
+- Render actions as compact `recorded-action` rows with an icon, description, metadata, and grouped badges. Keep timestamps in metadata only, removing the old duplicate right-aligned timestamp.
+- Keep `showActionTypes`, `showTimestamps`, `showValidations`, `showNetworkCalls`, and compact/detailed layout preferences connected to the existing component state.
+- Preserve validation relevance, confidence, tooltip, validation-trigger badge, and validation-description behavior using the existing component methods.
+- In detailed mode, show Element, Text, Value, XPath, and Position in the definition-list detail block. Long selectors, XPath values, and network URLs must wrap without overflowing the card.
+- Include styled API call, asset failure, and API failure entries; retain their existing conditions, methods, statuses, timestamps, content types, errors, and request/response indicators.
+- Preserve empty states and the responsive mobile layout, where badges move below the action description.
+- Include the appended Recorded Data SCSS, its Material tab overrides, and its `:host-context(.dark-theme)` overrides. Check text, badge, field, divider, and card contrast in both themes.
+- Keep the preceding recording controls, framework cards, statistics, generated tests, and execution components unchanged when merging this section into an existing destination app.
+
+Validation: run Angular template/type checking and SCSS compilation in the destination application. Inspect empty and populated action/network tabs, compact and detailed views, long URLs/selectors, validation badges, and mobile layouts in both themes. The source update passed Angular template/type checking and standalone SCSS compilation.
+
 ## AI Test Pilot favicon and browser title
 
 ![AI Test Pilot favicon](public/favicon.png)
