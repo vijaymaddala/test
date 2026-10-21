@@ -1,4 +1,4 @@
-# Recording page UI transfer instructions
+# AI Test Pilot UI and favicon transfer instructions
 
 This repository contains a UI transfer package, not a standalone Angular application.
 Use these files as the source of truth when porting the recording page into the destination application. Do not copy an entire application or backend into this repository.
@@ -10,6 +10,10 @@ Use these files as the source of truth when porting the recording page into the 
 - `src/app/components/test-recording-page/test-recording-page.ts`
 - `public/assets/frameworks/playwright.svg`
 - `public/assets/frameworks/puppeteer.svg`
+- `public/favicon.svg` — vector paper-plane and test-checkmark favicon
+- `public/favicon.ico` — 16, 32, 48, and 64px browser fallback
+- `public/favicon.png` — 256px preview/export
+- `src/index.html` — browser title and favicon link reference
 
 ## Prompt for GitHub Copilot
 
@@ -35,6 +39,26 @@ Port the recording-page UI from this package into the destination Angular applic
 10. Preserve expandable recording settings and credentials, and the conditional secondary export/generation actions.
 
 Do not modify backend files, dependencies, global theme settings, or shared framework-generation services. Specifically, do not include `server/src/services/headless-recording.service.js`; its local changes are unrelated.
+
+## AI Test Pilot favicon and browser title
+
+![AI Test Pilot favicon](public/favicon.png)
+
+Use the paper-plane icon with the green test checkmark provided in this package. Do not regenerate or substitute the earlier scan-frame icon.
+
+1. Copy `public/favicon.svg` and `public/favicon.ico` exactly into the destination application's `public/` directory. The supplied ICO already contains 16, 32, 48, and 64px variants. `public/favicon.png` is an optional 256px preview/export.
+2. Merge these entries into the destination `src/index.html` head, using the supplied file as a reference. Preserve the destination base URL, scripts, metadata, font links, and other head content. Replace existing favicon declarations to avoid duplicate or conflicting icons:
+
+   ```html
+   <title>AI Test Pilot</title>
+   <link rel="icon" type="image/x-icon" href="favicon.ico">
+   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+   ```
+
+3. Keep the asset paths relative so the application's base URL resolves them correctly. Angular's existing public-assets configuration should serve them at the app root; do not add dependencies.
+4. Confirm the SVG and ICO load successfully in the destination app, inspect the browser tab in both light and dark browser themes, and check the small-size rendering. Browsers cache favicons aggressively; if the previous icon persists, reload with cache disabled or open a fresh browser session.
+
+This commit includes the favicon and browser title. Other local AI Test Pilot branding changes across navigation, emails, and reports are not included in this transfer package.
 
 ## Validation in the destination application
 
