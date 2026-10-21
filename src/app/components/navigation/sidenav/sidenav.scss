@@ -1,0 +1,104 @@
+:host {
+  display: block;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.sidenav-container { height: 100%; min-height: calc(100vh - 64px); background: var(--background-color, #fafafa); }
+.sidenav {
+  --sidebar-surface: #fff;
+  --sidebar-text: #475569;
+  --sidebar-muted: #8290a3;
+  --sidebar-border: #e8edf5;
+  --sidebar-hover: #f3f7fc;
+  --sidebar-active: #edf5ff;
+  --sidebar-accent: #2563eb;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  border-right: 1px solid var(--sidebar-border);
+  border-radius: 0;
+  background: var(--sidebar-surface) !important;
+  color: var(--sidebar-text);
+}
+.sidenav.nav-dark {
+  --sidebar-surface: #1d2634;
+  --sidebar-text: #c3cfdf;
+  --sidebar-muted: #93a4bc;
+  --sidebar-border: #ffffff14;
+  --sidebar-hover: #ffffff08;
+  --sidebar-active: #293f5e;
+  --sidebar-accent: #91c1ff;
+}
+:host-context(.dark-theme) .sidenav {
+  --sidebar-surface: #1d2634;
+  --sidebar-text: #c3cfdf;
+  --sidebar-muted: #93a4bc;
+  --sidebar-border: #ffffff14;
+  --sidebar-hover: #ffffff08;
+  --sidebar-active: #293f5e;
+  --sidebar-accent: #91c1ff;
+}
+.sidenav.nav-custom {
+  --sidebar-surface: var(--sidebar-custom-surface);
+  --sidebar-text: var(--sidebar-custom-text);
+  --sidebar-muted: color-mix(in srgb, var(--sidebar-custom-text) 65%, transparent);
+  --sidebar-border: color-mix(in srgb, var(--sidebar-custom-text) 12%, transparent);
+  --sidebar-hover: color-mix(in srgb, var(--sidebar-custom-text) 7%, transparent);
+  --sidebar-active: color-mix(in srgb, var(--sidebar-custom-text) 12%, transparent);
+  --sidebar-accent: var(--sidebar-custom-text);
+}
+.sidenav-content { display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; padding: 0 14px; }
+.sidebar-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px 6px; color: var(--sidebar-muted); font-size: 12px; }
+.sidebar-close { margin-left: auto; flex-shrink: 0; width: 32px; height: 32px; padding: 4px; color: var(--sidebar-muted); --mat-icon-button-state-layer-size: 32px; }
+.sidebar-close mat-icon { font-size: 20px; width: 20px; height: 20px; }
+.navigation-menu { flex: 1; padding-block: 20px; }
+.nav-section + .nav-section { margin-top: 22px; }
+.nav-section h2 { margin: 0 12px 8px; color: var(--sidebar-muted); font-size: 10px; line-height: 1.5; font-weight: 650; letter-spacing: 1.1px; text-transform: uppercase; }
+.nav-list { padding: 0; }
+.nav-item {
+  --mat-list-list-item-container-shape: 4px;
+  --mat-list-active-indicator-shape: 4px;
+  --mat-list-active-indicator-color: var(--sidebar-active);
+  --mat-list-list-item-one-line-container-height: 42px;
+  --mat-list-list-item-label-text-color: var(--sidebar-text);
+  --mat-list-list-item-hover-label-text-color: var(--sidebar-text);
+  --mat-list-list-item-focus-label-text-color: var(--sidebar-text);
+  --mat-list-list-item-leading-icon-color: var(--sidebar-muted);
+  --mat-list-list-item-hover-leading-icon-color: var(--sidebar-accent);
+  --mat-list-list-item-label-text-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mat-list-list-item-label-text-size: 13px;
+  --mat-list-list-item-label-text-weight: 500;
+  --mat-list-list-item-leading-icon-start-space: 12px;
+  --mat-list-list-item-leading-icon-end-space: 12px;
+  --mat-list-list-item-leading-icon-size: 20px;
+  position: relative;
+  height: 42px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  text-decoration: none;
+  transition: background-color .15s ease;
+  mat-icon { color: var(--sidebar-muted); width: 20px; height: 20px; font-size: 20px; }
+  .item-content { font-family: inherit; font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--sidebar-text); }
+  &:hover { background: var(--sidebar-hover); }
+  &:focus-visible { outline: 2px solid var(--sidebar-accent); outline-offset: 2px; }
+  &.active {
+    background: var(--sidebar-active);
+    --mat-list-list-item-label-text-color: var(--sidebar-accent);
+    --mat-list-list-item-hover-label-text-color: var(--sidebar-accent);
+    --mat-list-list-item-focus-label-text-color: var(--sidebar-accent);
+    mat-icon, .item-content { color: var(--sidebar-accent); }
+    .item-content { font-weight: 600; }
+    &::after { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--sidebar-accent); }
+  }
+}
+.nav-parent { display: flex; align-items: center; gap: 12px; width: 100%; padding: 0 12px; border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer; }
+.nav-parent .item-content { flex: 1; }
+.expand-icon { margin-left: auto; transition: transform .15s ease; &.expanded { transform: rotate(180deg); } }
+.children-container { margin: 4px 0 8px 22px; padding-left: 8px; border-left: 1px solid var(--sidebar-border); }
+.child-item { --mat-list-list-item-one-line-container-height: 38px; height: 38px; }
+.admin-divider { border-color: var(--sidebar-border); margin: 16px 0; }
+.sidebar-footer { display: flex; align-items: center; gap: 8px; padding: 16px 10px 22px; border-top: 1px solid var(--sidebar-border); color: var(--sidebar-muted); font-size: 11px; }
+.sidebar-footer mat-icon { width: 16px; height: 16px; font-size: 16px; }
+.sidenav-main-content { background: var(--background-color, #fafafa); }
+:host ::ng-deep .sidenav .mat-drawer-inner-container { scrollbar-width: thin; scrollbar-color: var(--sidebar-border) transparent; }
+@media (max-width: 768px) { .sidenav { width: 280px; } }
+@media (prefers-reduced-motion: reduce) { .nav-item, .expand-icon { transition: none; } }
